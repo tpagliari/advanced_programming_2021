@@ -1,11 +1,7 @@
 #include <iostream>
 #include <vector>
 
-// VERSIONE PRELIMINARE
-
 // Without exposing the underlining representation
-// A single stack is not stored in a contigous block of memory, the stack
-// is a linear linked data structure in the pool vector.
 template <typename node_t, typename T, typename N>
 class _iterator {
     node_t* pool_ptr; 
@@ -18,11 +14,12 @@ public:
     using stack_ptr_type = stack_type*;
     using stack_ref_type = stack_type&;
 
-    using difference_type   = std::ptrdiff_t;
+    using difference_type = std::ptrdiff_t;
     typedef std::forward_iterator_tag iterator_category; 
    
     // end and begin will be the same if they have the 
-    // address of the one before first elem. of the pool vector
+    // address of the one before first elem. of the stack
+    // --> end
     //
     //_iterator(node_t* ptr) : current_node_ptr{ptr-1} {};
     _iterator(stack_type x, node_t* ptr) :
@@ -69,25 +66,12 @@ class stack_pool {
     const node_t& node(stack_type x) const noexcept { 
         return pool[x - 1]; 
     }
-    
+
     // 2 if statement
     // --> one explicitly done by me
     // --> one internally done by std::vector emplace
     template <typename O>
-        stack_type _push(O&& val, stack_type head) {
-            stack_type tmp{free_nodes};
-            if(free_nodes > pool.size()){
-                ++free_nodes;
-                // --> reserve condition is internally managed by std::vector
-                pool.emplace_back(std::forward<O>(val), head);
-            }else{
-                free_nodes = next(free_nodes);
-                //pool[tmp-1] = node_t{std::forward<O>(val), head};
-                node(tmp) = node_t{std::forward<O>(val), head};
-            }
-            //std::cout << "free_nodes " << free_nodes << std::endl;
-            return tmp;
-        }
+        stack_type _push(O&& val, stack_type head);
 
 public:
     stack_pool() = default;
@@ -132,22 +116,14 @@ public:
         return _push(std::move(val), head);
     }
 
-    stack_type pop(stack_type x){
-        if(empty(x)) return x; // return if stack is empty
-        stack_type tmp = next(x);
-        next(x) = free_nodes;
-        free_nodes = x;
-        //std::cout << "free_nodes " << free_nodes << std::endl;
-        return tmp;
-    }
+    stack_type pop(stack_type x);
 
     // NOTE: pop() does not destroy the nodes,
     // so the size of the pool is still the same.
     // when I push on the slots freed by the free_stack function,
     // push() will select the []-op branch. 
     stack_type free_stack(stack_type x){
-        while(x)
-            x = pop(x);
+        while(x) x = pop(x);
         return x; //end()
     }
 
@@ -169,7 +145,7 @@ public:
         return iterator{x, pool.data()}; // using ctor defined in class _iterator
                                          // returns the begin of the stack
     }
-    iterator end(stack_type ) { // suppress compiler warnings about unused variables
+    iterator end(stack_type ) { 
         //return iterator(pool.data());
         return iterator{0, pool.data()}; // returns the end of the stack
     }
@@ -186,5 +162,32 @@ public:
     }
     const_iterator cend(stack_type ) const {
         return const_iterator{0, pool.data()};
-    };
+    }
+};
+
+template <typename T, typename N>
+template <typename O>
+N stack_pool<T, N>::_push(O&& val, N head) {
+    N tmp{free_nodes};
+    if(free_nodes > pool.size()){
+        ++free_nodes;
+        // --> reserve condition is internally managed by std::vector
+        pool.emplace_back(std::forward<O>(val), head);
+    }else{
+        free_nodes = next(free_nodes);
+        //pool[tmp-1] = node_t{std::forward<O>(val), head};
+        node(tmp) = node_t{std::forward<O>(val), head};
+    }
+    //std::cout << "free_nodes " << free_nodes << std::endl;
+    return tmp;
+};
+
+template <typename T, typename N>
+N stack_pool<T, N>::pop(N x){
+    if(empty(x)) return x;
+    N tmp = next(x);
+    next(x) = free_nodes;
+    free_nodes = x;
+    //std::cout << "free_nodes " << free_nodes << std::endl;
+    return tmp;
 };
