@@ -20,8 +20,6 @@ public:
     // end and begin will be the same if they have the 
     // address of the one before first elem. of the stack
     // --> end
-    //
-    //_iterator(node_t* ptr) : current_node_ptr{ptr-1} {};
     _iterator(stack_type x, node_t* ptr) :
         pool_ptr{ptr}, current_node_ptr{pool_ptr + x - 1} {};
         
@@ -45,24 +43,11 @@ public:
     }
 };
 
-template <typename T, typename N, typename stackpool>
-class _stack {
-    stackpool* pool_ptr;
-    N head;
-public:
-    _stack(stackpool* ptr, N x)
-        : pool_ptr{ptr}, head{x} {};
-    auto begin() {
-        return pool_ptr->begin(head);
-    }
-    auto end() {
-        return pool_ptr->end(head);
-    }    
-};
 
 // interface the user will play with ...
 template <typename T, typename N = std::size_t>
 class stack_pool {
+    
     struct node_t {
         T value;
         N next;
@@ -70,12 +55,22 @@ class stack_pool {
             node_t(O&& o, N n)
             : value{std::forward<O>(o)}, next{n} {}; 
     };
-public:
-    friend std::ostream& operator<<(std::ostream& os, node_t& a){
-            std::cout << "[" << a.value << "|" << a.next << "]<--";
-            return os;
+
+    // no need to specify template parameters for stack_pool
+    class _stack {
+        stack_pool* pool_ptr;
+        N head;
+    public:
+        _stack(stack_pool* ptr, N x)
+            : pool_ptr{ptr}, head{x} {};
+        auto begin() {
+            return pool_ptr->begin(head);
         }
-private:
+        auto end() {
+            return pool_ptr->end(head);
+        }    
+    };
+
     std::vector<node_t> pool;
     using stack_type = N;
     using value_type = T;
@@ -124,12 +119,16 @@ public:
     T& value(stack_type x) {
         return node(x).value;
     }
-    const T& value(stack_type x) const;
+    const T& value(stack_type x) const {
+        return node(x).value;
+    }
 
     stack_type& next(stack_type x) {
         return node(x).next;
     }
-    const stack_type& next(stack_type x) const;
+    const stack_type& next(stack_type x) const {
+        return node(x).next;
+    }
 
     stack_type push(const T& val, stack_type head) {
         return _push(val, head);
@@ -151,20 +150,11 @@ public:
 
     // method to give the user access at the 
     // range based for loop over a stack
-    using range_stack = _stack<T, N, stack_pool<T, N>>;
-    auto stack(stack_type head){
-        return range_stack{this, head}; // call ctor of _stack struct
+    auto stack(_stack head){
+        return _stack{this, head}; // call ctor of _stack class
     }
 
-    // void display_stack(stack_type x) {
-    //     std::cout << "Pool capacity:\t" << capacity() << "\n";
-    //     std::cout << "Pool size:\t" << pool.size() << std::endl;
-    //     while(x) {
-    //         std::cout << "[" << value(x) << " " << next(x) << "]-->";
-    //         x = next(x);
-    //     }
-    //     std::cout << "end()" << std::endl;
-    // }
+    void display_stack(stack_type x) const;
 
 public:
     using iterator = _iterator<node_t, T, N>;
@@ -175,7 +165,6 @@ public:
                                          // returns the begin of the stack
     }
     iterator end(stack_type ) { 
-        //return iterator(pool.data());
         return iterator{0, pool.data()}; // returns the end of the stack
     }
 
@@ -219,4 +208,15 @@ N stack_pool<T, N>::pop(N x){
     free_nodes = x;
     //std::cout << "free_nodes " << free_nodes << std::endl;
     return tmp;
+};
+
+// C++17
+template <typename T, typename N>
+void stack_pool<T, N>::display_stack(N x) const {
+    while(x){
+        const auto& [val, next] = stack_pool::node(x);
+        std::cout << val << "," << next << " --> ";
+        x = stack_pool::next(x);
+    }
+    std::cout << std::endl;
 };

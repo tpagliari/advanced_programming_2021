@@ -1,7 +1,8 @@
 SRC = tests.cpp
 
 CXX = c++
-CXXFLAGS = -Wall -Wextra -std=c++14 -O3
+#CXXFLAGS = -Wall -Wextra -std=c++14 -O3
+CXXFLAGS = -Wall -Wextra -std=c++17 -O3
 
 EXE = $(SRC:.cpp=.x)
 
