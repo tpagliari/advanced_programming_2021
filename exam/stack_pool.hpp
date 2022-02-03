@@ -6,17 +6,17 @@ template <typename node_t, typename T, typename N>
 class _iterator {
     node_t* pool_ptr; 
     node_t* current_node_ptr;
-public:
+public: 
     using value_type = T;
     using pointer = value_type*;
     using reference = value_type&;
     using stack_type = N;
     using stack_ptr_type = stack_type*;
     using stack_ref_type = stack_type&;
-
+    
     using difference_type = std::ptrdiff_t;
     typedef std::forward_iterator_tag iterator_category; 
-   
+    
     // end and begin will be the same if they have the 
     // address of the one before first elem. of the stack
     // --> end
@@ -43,7 +43,6 @@ public:
     }
 };
 
-
 // interface the user will play with ...
 template <typename T, typename N = std::size_t>
 class stack_pool {
@@ -56,13 +55,19 @@ class stack_pool {
             : value{std::forward<O>(o)}, next{n} {}; 
     };
 
-    // no need to specify template parameters for stack_pool
+    // this class allows stack_pool to have begin() and end() public methods
     class _stack {
-        stack_pool* pool_ptr;
+        stack_pool* pool_ptr; // Need pool_ptr also in nested class
+                              // nested cls has no special access to the this pointer 
+                              // of the enclosing class.
+                              // without pool_ptr there's no way to know on which 
+                              // instance of pool the method has to be invoked
+                              // (same logic in the _iterator)
         N head;
     public:
         _stack(stack_pool* ptr, N x)
             : pool_ptr{ptr}, head{x} {};
+        // I can access begin(stack type ) and end(stack_type ) of the particular instance
         auto begin() {
             return pool_ptr->begin(head);
         }
@@ -75,7 +80,7 @@ class stack_pool {
     using stack_type = N;
     using value_type = T;
     using size_type = typename std::vector<node_t>::size_type;
-    stack_type free_nodes{1};
+    stack_type free_nodes{end()};
 
     node_t& node(stack_type x) noexcept {
         return pool[x - 1]; 
@@ -95,7 +100,7 @@ public:
     explicit stack_pool(size_type n) {
         reserve(n); // capacity == n
     }
-
+    
     stack_type new_stack() {
         return end(); 
     }
@@ -150,7 +155,7 @@ public:
 
     // method to give the user access at the 
     // range based for loop over a stack
-    auto stack(_stack head){
+    auto stack(stack_type head){
         return _stack{this, head}; // call ctor of _stack class
     }
 
@@ -186,18 +191,18 @@ public:
 template <typename T, typename N>
 template <typename O>
 N stack_pool<T, N>::_push(O&& val, N head) {
-    N tmp{free_nodes};
-    if(free_nodes > pool.size()){
-        ++free_nodes;
+    if(empty(free_nodes)){
         // --> reserve condition is internally managed by std::vector
         pool.emplace_back(std::forward<O>(val), head);
+        return static_cast<stack_type>(pool.size());
     }else{
+        auto tmp = free_nodes;
         free_nodes = next(free_nodes);
         //pool[tmp-1] = node_t{std::forward<O>(val), head};
         node(tmp) = node_t{std::forward<O>(val), head};
+        return tmp;
     }
     //std::cout << "free_nodes " << free_nodes << std::endl;
-    return tmp;
 };
 
 template <typename T, typename N>
