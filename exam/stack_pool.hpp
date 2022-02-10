@@ -6,7 +6,7 @@
  */
 template <typename node_t, typename T, typename N>
 class _iterator {
-    node_t* pool_ptr; 
+    node_t* first_pool_node_ptr; 
     node_t* current_node_ptr;
 public: 
     using value_type = T;
@@ -19,17 +19,14 @@ public:
     using difference_type = std::ptrdiff_t;
     typedef std::forward_iterator_tag iterator_category; 
     
-    // end and begin will be the same if they have the 
-    // address of the one past the last elem. of the stack
-    // --> end
     _iterator(stack_type x, node_t* ptr) noexcept :
-        pool_ptr{ptr}, current_node_ptr{pool_ptr + x - 1} {};
+        first_pool_node_ptr{ptr}, current_node_ptr{first_pool_node_ptr + x - 1} {};
         
     reference operator*() const {
         return current_node_ptr->value;
     }
     _iterator& operator++() {
-        current_node_ptr = pool_ptr + current_node_ptr->next - 1;
+        current_node_ptr = first_pool_node_ptr + current_node_ptr->next - 1;
         return *this;
     }
     _iterator operator++(int){ 
@@ -88,6 +85,10 @@ class stack_pool {
     using size_type = typename std::vector<node_t>::size_type;
     stack_type free_nodes{end()};
 
+    /*
+     * Functions that defines a one-to-one correspondence between
+     * a particular stack and the vector it is stored in.
+     */
     node_t& node(stack_type x) noexcept {
         return pool[x - 1]; 
     }
@@ -95,8 +96,22 @@ class stack_pool {
         return pool[x - 1]; 
     }
 
+    /*
+     * Forwarding referenced in order to have a push method that is
+     * able to accept both const& value and rvalue without
+     * code-duplication of the body function.
+     */
     template <typename O>
         stack_type _push(O&& val, stack_type head);
+
+    /*
+     * This function is used to perform checkings for logic errors
+     * eventually committed by the user, e.g. popping an empty stack.
+     */
+    void check_logic_error(stack_type x, const std::string& message) const {
+        if(empty(x)) 
+            throw std::out_of_range(message);
+    }
 
 public:
     /*
@@ -166,13 +181,11 @@ public:
      * elements out of defined range.
      */
     T& value(stack_type x) {
-        if(empty(x))
-            throw std::out_of_range("Requested value of empty stack");
+        check_logic_error(x, "Requested value on empty stack");
         return node(x).value;
     }
     const T& value(stack_type x) const {
-        if(empty(x))
-            throw std::out_of_range("Requested value of empty stack");
+        check_logic_error(x, "Requested value on empty stack");
         return node(x).value;
     }
 
@@ -186,13 +199,11 @@ public:
      * elements out of defined range.
      */
     stack_type& next(stack_type x) {
-        if(empty(x))
-            throw std::out_of_range("Requested next of empty stack");
+        check_logic_error(x, "Requested next on empty stack");
         return node(x).next;
     }
     const stack_type& next(stack_type x) const { 
-        if(empty(x))
-            throw std::out_of_range("Requested next of empty stack");
+        check_logic_error(x, "Requested next on empty stack");
         return node(x).next;
     }
 
@@ -314,9 +325,7 @@ N stack_pool<T, N>::_push(O&& val, N head) {
  */
 template <typename T, typename N>
 N stack_pool<T, N>::pop(N x){
-    if(empty(x))
-        throw std::invalid_argument("Received empty stack to pop"); 
-    N tmp = next(x);
+    N tmp = next(x); // internally checks for logic error
     next(x) = free_nodes;
     free_nodes = x;
     return tmp;
@@ -326,9 +335,9 @@ N stack_pool<T, N>::pop(N x){
  * This method allows the user to print a stack in the pool.
  *
  * std::cout may throw exceptions, so I would not mark the 
- * following method noexcept. For example, if the quantity of occupied
- * memory of the stack is near the boundary, cout may throw because it
- * allocates memory.
+ * following method noexcept. For example, if the quantity of available
+ * memory is running low, cout may throw because it
+ * allocates new memory.
  */
 template <typename T, typename N>
 void stack_pool<T, N>::display_stack(N x) const {
