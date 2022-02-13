@@ -2,7 +2,7 @@
 #include <vector>
 
 /*
- * Without exposing the underlining representation
+ * Without exposing the underlying representation
  */
 template <typename node_t, typename T, typename N>
 class _iterator {
@@ -226,11 +226,7 @@ public:
      * Still, the user should be careful and be sure to pass 
      * the head of the stack as argument.
      */
-    stack_type free_stack(stack_type x) noexcept {
-        // NOTE: pop() does not destroy the nodes,
-        // so the size of the pool is still the same.
-        // when I push on the slots freed by the free_stack function,
-        // push() will select the []-op branch. 
+    stack_type free_stack(stack_type x) noexcept { 
         while(x) x = pop(x);
         return x;
     }
